@@ -8,9 +8,9 @@ import pydotplus
 import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree import plot_tree
-from sklearn.naive_bayes import GaussianNB, MultinomialNB
+from sklearn.naive_bayes import BernoulliNB
 from sklearn.model_selection import train_test_split,cross_val_score
-from sklearn.metrics import confusion_matrix,classification_report,roc_curve,accuracy_score,roc_auc_score
+from sklearn.metrics import confusion_matrix,classification_report,roc_curve,roc_auc_score
 import category_encoders as ce
 
 #Loading Dataset and declare feature vector and target variable 
@@ -20,7 +20,7 @@ y = traindata['class'] #target variable
 
 #Encode categorical variables
 def encoding(X_train,X_test):
-    encoder = ce.OrdinalEncoder(cols=['age', 'job', 'marital', 'education','default','balance','housing','loan','contact','day','month','duration','campaign','pdays','previous','poutcome'])
+    encoder = ce.OneHotEncoder(cols=['age', 'job', 'marital', 'education','default','balance','housing','loan','contact','day','month','duration','campaign','pdays','previous','poutcome'])
     X_train = encoder.fit_transform(X_train)
     X_test = encoder.transform(X_test)
     return X_train,X_test
@@ -112,6 +112,13 @@ def ROC_Curve(clf,X_test,y_test,algoNum):
     plt.savefig(result_path, dpi=400)
     return ROC_AUC
 
+#Printing Classification Report of each algorithm
+def print_classification_report(y_test,prediction,algoNum):
+    if(algoNum==1):
+        print("Classification Report of Decision Tree Algorithm:\n",classification_report(y_test,prediction))
+    else:
+        print("Classification Report of Navie Bayes Algorithm:\n",classification_report(y_test,prediction))
+
 #Created a function for Decision Tree Classifier
 def Decisiontree():
     #Split data into separate training and test set
@@ -123,11 +130,14 @@ def Decisiontree():
     clf.fit(X_train,y_train)
     printTree(clf,X_train)
     prediction=clf.predict(X_test)
-    printOutput(X_test_original,prediction,1)
+    printOutput(X_test_original,prediction,1) 
     evalList=ModelEvalution(y_test,prediction,1)
     evalList.append(crossValidation_Score(clf,X_train,y_train))
     evalList.append(ROC_Curve(clf,X_test,y_test,1))
-    return evalList 
+    evalList.insert(0,round(clf.score(X_train,y_train),3))
+    evalList.insert(1,round(clf.score(X_test, y_test),3)) 
+    print_classification_report(y_test,prediction,1)
+    return evalList
 	
 #Created a function for Navie Bayes Classifier	
 def NaiveBayes():
@@ -135,13 +145,16 @@ def NaiveBayes():
     X_test_original=X_test.copy(deep=False)
     X_train_original=X_train.copy(deep=False)
     X_train,X_test=encoding(X_train,X_test)
-    nv = MultinomialNB()
+    nv = BernoulliNB()
     nv.fit(X_train, y_train)
     y_pred = nv.predict(X_test)
     printOutput(X_test_original,y_pred,2)
     evalList=ModelEvalution(y_test,y_pred,2)
     evalList.append(crossValidation_Score(nv,X_train,y_train))
     evalList.append(ROC_Curve(nv,X_test,y_test,2))
+    evalList.insert(0,round(nv.score(X_train,y_train),3))
+    evalList.insert(1,round(nv.score(X_test, y_test),3))
+    print_classification_report(y_test,y_pred,2)  
     return evalList
 	
 #Calling Decisiontree function and NaiveBayes function
@@ -150,5 +163,5 @@ nbList=NaiveBayes()
 
 #Displaying the comparision between Decisiontree and NaiveBayes 
 data = {'Decision Tree Algorithm':dtlist,'Navie Bayes Algorithm':nbList}
-headers=["Classification Accuracy Score","Classification Error", "Precision", "Recall", "F1 Score","True Positive Rate","False Positive Rate","True Negative Rate","False Negative Rate","Cross Validation Score","ROC_AUC"] 
+headers=["Training set score","Test set score","Classification Accuracy Score","Classification Error", "Precision", "Recall", "F1 Score","True Positive Rate","False Positive Rate","True Negative Rate","False Negative Rate","Cross Validation Score","ROC_AUC"] 
 print(pd.DataFrame(data, headers))
